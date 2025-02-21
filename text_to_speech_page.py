@@ -1,5 +1,5 @@
 import cv2
-import pytesseract
+import easyocr
 import numpy as np
 import threading
 from kivy.uix.screenmanager import Screen
@@ -16,6 +16,7 @@ class TextRecognitionPage(Screen):
         self.camera = None  # Camera will initialize only when needed
         self.is_scanning = False
         self.ocr_result = "Position object in front of the camera"
+        self.reader = easyocr.Reader(['en'])  # Initialize EasyOCR
 
         layout = BoxLayout(orientation='vertical', spacing=10, padding=20)
         self.label = Label(text="Text Recognition", size_hint=(1, 0.1))
@@ -23,12 +24,15 @@ class TextRecognitionPage(Screen):
 
         self.text_area = TextInput(
             text=self.ocr_result,
-            size_hint=(1, 0.6),
+            size_hint=(1, 0.5),
             readonly=True,
             background_color=(0.9, 0.9, 0.9, 1),
             foreground_color=(0, 0, 0, 1),
         )
         layout.add_widget(self.text_area)
+
+        self.confidence_label = Label(text="Confidence: N/A", size_hint=(1, 0.1))
+        layout.add_widget(self.confidence_label)
 
         self.scan_button = Button(text="Start Scanning", size_hint=(1, 0.2))
         self.scan_button.bind(on_press=self.toggle_scan)
@@ -65,8 +69,14 @@ class TextRecognitionPage(Screen):
             if ret:
                 cropped_frame = self.extract_text_area(frame)
                 preprocessed = self.preprocess_image(cropped_frame)
-                detected_text = pytesseract.image_to_string(preprocessed, lang="eng", config="--oem 1 --psm 6").strip()
-                Clock.schedule_once(lambda dt: self.display_text(detected_text))
+                results = self.reader.readtext(preprocessed)
+
+                detected_text = " ".join([res[1] for res in results if res[2] >= 0.8])  # Confidence threshold 80%
+                avg_confidence = (sum([res[2] for res in results]) / len(results)) * 100 if results else 0
+                
+                if avg_confidence >= 70:
+                    self.is_scanning = False  # Stop scanning when confidence is 80% or higher
+                Clock.schedule_once(lambda dt: self.display_text(detected_text, avg_confidence))
 
     def extract_text_area(self, frame):
         """Automatically detect and crop the text area."""
@@ -87,14 +97,12 @@ class TextRecognitionPage(Screen):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
-        _, binary = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        kernel = np.ones((3, 3), np.uint8)
-        processed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-        return processed
+        return enhanced
 
-    def display_text(self, detected_text):
+    def display_text(self, detected_text, confidence):
         self.ocr_result = f"Detected Text:\n{detected_text}" if detected_text else "No text detected"
         self.text_area.text = self.ocr_result
+        self.confidence_label.text = f"Confidence: {confidence:.2f}%"
 
     def release_camera(self):
         if self.camera:
