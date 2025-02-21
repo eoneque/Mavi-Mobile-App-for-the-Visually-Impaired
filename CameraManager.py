@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 class CameraManager:
     _instance = None  # Singleton instance
@@ -24,14 +25,16 @@ class CameraManager:
             self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             print(f"📷 Camera resolution set to {width}x{height}")
 
-    def get_frame(self):
-        """Retrieve a frame from the camera with optimized settings."""
+    def get_frame(self, preprocess=False):
+        """Retrieve a frame from the camera with optimized settings. If preprocess=True, convert to grayscale."""
         if self.capture and self.capture.isOpened():
             ret, frame = self.capture.read()
 
             # ✅ Reduce frame size dynamically if lag is detected
             if ret:
                 frame = cv2.resize(frame, (1280, 720), interpolation=cv2.INTER_AREA)  # Smooth downscaling
+                if preprocess:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Preprocess for OCR
                 return ret, frame
         return False, None
 
