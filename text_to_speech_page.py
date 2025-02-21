@@ -7,7 +7,10 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.image import Image
 from kivy.clock import Clock
+from kivy.graphics.texture import Texture
 from CameraManager import CameraManager  # Shared Camera Manager
 
 class TextRecognitionPage(Screen):
@@ -22,21 +25,37 @@ class TextRecognitionPage(Screen):
         self.label = Label(text="Text Recognition", size_hint=(1, 0.1))
         layout.add_widget(self.label)
 
+        # Camera Feed
+        self.image_widget = Image(size_hint=(1, 0.5))
+        layout.add_widget(self.image_widget)
+
+        # Scrollable Text Area
+        scroll_view = ScrollView(size_hint=(1, 0.3))
         self.text_area = TextInput(
             text=self.ocr_result,
-            size_hint=(1, 0.5),
             readonly=True,
+            size_hint_y=None,
+            height=150,
             background_color=(0.9, 0.9, 0.9, 1),
             foreground_color=(0, 0, 0, 1),
         )
-        layout.add_widget(self.text_area)
+        scroll_view.add_widget(self.text_area)
+        layout.add_widget(scroll_view)
 
         self.confidence_label = Label(text="Confidence: N/A", size_hint=(1, 0.1))
         layout.add_widget(self.confidence_label)
 
-        self.scan_button = Button(text="Start Scanning", size_hint=(1, 0.2))
+        # Buttons Layout (Start Scanning & Take Photo)
+        buttons_layout = BoxLayout(size_hint=(1, 0.2))
+        self.scan_button = Button(text="Start Scanning", size_hint=(0.5, 0.2))
         self.scan_button.bind(on_press=self.toggle_scan)
-        layout.add_widget(self.scan_button)
+        buttons_layout.add_widget(self.scan_button)
+        
+        self.capture_button = Button(text="Take Photo", size_hint=(0.5, 0.2))
+        self.capture_button.bind(on_press=self.capture_photo)
+        buttons_layout.add_widget(self.capture_button)
+        
+        layout.add_widget(buttons_layout)
 
         self.add_widget(layout)
 
@@ -54,11 +73,13 @@ class TextRecognitionPage(Screen):
         self.scan_button.text = "Stop Scanning"
         self.is_scanning = True
         threading.Thread(target=self.scan_text, daemon=True).start()
+        Clock.schedule_interval(self.update_camera_feed, 1.0 / 30.0)  # Update camera feed 30 FPS
 
     def stop_scan(self):
         self.is_scanning = False
         self.label.text = "Text Recognition"
         self.scan_button.text = "Start Scanning"
+        Clock.unschedule(self.update_camera_feed)
 
     def scan_text(self):
         while self.is_scanning:
@@ -75,7 +96,7 @@ class TextRecognitionPage(Screen):
                 avg_confidence = (sum([res[2] for res in results]) / len(results)) * 100 if results else 0
                 
                 if avg_confidence >= 70:
-                    self.is_scanning = False  # Stop scanning when confidence is 80% or higher
+                    self.is_scanning = False  # Stop scanning when confidence is 70% or higher
                 Clock.schedule_once(lambda dt: self.display_text(detected_text, avg_confidence))
 
     def extract_text_area(self, frame):
@@ -103,6 +124,25 @@ class TextRecognitionPage(Screen):
         self.ocr_result = f"Detected Text:\n{detected_text}" if detected_text else "No text detected"
         self.text_area.text = self.ocr_result
         self.confidence_label.text = f"Confidence: {confidence:.2f}%"
+
+    def update_camera_feed(self, dt):
+        """Update the camera feed in the UI."""
+        if self.camera:
+            ret, frame = self.camera.get_frame()
+            if ret:
+                buf = cv2.flip(frame, 0).tostring()
+                texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+                texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+                self.image_widget.texture = texture
+
+    def capture_photo(self, instance):
+        """Capture a photo and save it."""
+        if self.camera:
+            ret, frame = self.camera.get_frame()
+            if ret:
+                photo_path = "captured_photo.png"
+                cv2.imwrite(photo_path, frame)
+                self.label.text = f"Photo saved: {photo_path}"
 
     def release_camera(self):
         if self.camera:
