@@ -85,7 +85,7 @@ class LoginPage(Screen):
             users_data = response.json()
             for user_id, user_info in users_data.items():
                 if user_info["full_name"] == full_name and user_info["password"] == password:
-                    self.manager.current = "dashboard"
+                    self.manager.current = "dashboard_page"
                     return
 
             self.error_label.text = "Invalid Full Name or Password!"
