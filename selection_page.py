@@ -9,7 +9,7 @@ class SelectionPage(Screen):
         super().__init__(**kwargs)
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         layout.add_widget(Image(source='logs.png', size_hint=(1, 1)))
-        layout.add_widget(Label(text="Welcome!", font_size=24))
+        layout.add_widget(Label(text="WELCOME!", font_size=24))
         btn_student = Button(text="Get Started", size_hint=(1, 0.2))
         btn_student.bind(on_release=lambda x: setattr(self.manager, "current", "login_signup_page"))
 
