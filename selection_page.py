@@ -34,7 +34,7 @@ class SelectionPage(Screen):
         logo = Image(source='logs.png', size_hint=(1, 0.4))
 
         # Label
-        welcome_label = Label(text="Welcome,Nigga!", font_size=30, bold=True)
+        welcome_label = Label(text="Welcome!", font_size=30, bold=True)
 
         # Styled Rounded Button
         btn_student = Button(
