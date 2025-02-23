@@ -9,6 +9,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
+from kivy.uix.relativelayout import RelativeLayout
+from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from CameraManager import CameraManager  # ✅ Camera Management Class
 
@@ -33,41 +35,76 @@ class LoginPage(Screen):
         self.max_attempts = 5
         self.confidence_threshold = 5000
 
-        # ✅ UI Layout
-        layout = BoxLayout(orientation='vertical', spacing=15, padding=40)
+        # ✅ Get the correct path for the background image
+        bg_path = os.path.abspath("bgwhite.jpg")  # Ensure the image is in your project folder
 
-        # ✅ Login Fields (Smaller Text Fields)
-        self.label = Label(text="Login", size_hint=(1, 0.05), font_size=24)
-        layout.add_widget(self.label)
+        # ✅ Create a RelativeLayout for the background
+        layout = RelativeLayout()
+
+        # ✅ Background Image using Rectangle
+        with layout.canvas.before:
+            self.bg_color = Color(1, 1, 1, 1)  # White fallback
+            self.bg_rect = Rectangle(source=bg_path, pos=self.pos, size=self.size)
+
+        # ✅ Bind the background to window size changes
+        self.bind(size=self.update_bg, pos=self.update_bg)
+
+        # ✅ Main Layout with Spacing & Padding
+        box = BoxLayout(orientation='vertical', spacing=15, padding=40)
+        box.size_hint = (0.8, 0.8)
+        box.pos_hint = {"center_x": 0.5, "center_y": 0.5}
+
+        # ✅ Login Fields
+        self.label = Label(text="Login", font_size=24, bold=True, size_hint=(1, 0.05))
+        box.add_widget(self.label)
 
         self.full_name_input = TextInput(hint_text="Full Name", multiline=False, size_hint=(1, 0.08))
-        layout.add_widget(self.full_name_input)
+        box.add_widget(self.full_name_input)
 
         self.password_input = TextInput(hint_text="Password", password=True, multiline=False, size_hint=(1, 0.08))
-        layout.add_widget(self.password_input)
+        box.add_widget(self.password_input)
 
         self.error_label = Label(text="", color=(1, 0, 0, 1), size_hint=(1, 0.05))
-        layout.add_widget(self.error_label)
+        box.add_widget(self.error_label)
 
-        # ✅ Buttons for Manual Login & Face Login (Larger Buttons)
+        # ✅ Buttons Layout
         button_layout = BoxLayout(orientation="vertical", spacing=10, size_hint=(1, 0.3))
 
-        self.login_button = Button(text="Login", size_hint=(1, 0.3), font_size=18, bold=True)
+        self.login_button = Button(
+            text="Login",
+            size_hint=(1, 0.3),
+            font_size=18,
+            bold=True,
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1)
+        )
         self.login_button.bind(on_press=self.login)
         button_layout.add_widget(self.login_button)
 
-        self.face_login_button = Button(text="Use Face Recognition", size_hint=(1, 0.3), font_size=18, bold=True)
+        self.face_login_button = Button(
+            text="Use Face Recognition",
+            size_hint=(1, 0.3),
+            font_size=18,
+            bold=True,
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1)
+        )
         self.face_login_button.bind(on_press=self.start_scan)
         button_layout.add_widget(self.face_login_button)
 
-        layout.add_widget(button_layout)
+        box.add_widget(button_layout)
 
-        # ✅ Navigation Buttons (Larger Buttons)
-
+        # ✅ Add BoxLayout to the main layout
+        layout.add_widget(box)
         self.add_widget(layout)
 
         # ✅ Load & Train Faces on App Start
         self.known_faces, self.label_map = self.load_known_faces("images")
+
+    def update_bg(self, *args):
+        """Update background image position and size when the window resizes."""
+        self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
 
     def login(self, instance):
         """Manual Login using Firebase"""
@@ -78,7 +115,7 @@ class LoginPage(Screen):
             self.error_label.text = "Enter Full Name and Password!"
             return
 
-        db_url = f"{FIREBASE_DATABASE_URL}/users.json"
+        db_url = f"https://project-mavii1-default-rtdb.firebaseio.com/users.json"
         response = requests.get(db_url)
 
         if response.status_code == 200 and response.json():
@@ -129,11 +166,6 @@ class LoginPage(Screen):
                     w = max(1, int(bboxC.width * frame_w))
                     h = max(1, int(bboxC.height * frame_h))
 
-                    x = min(x, frame_w - 1)
-                    y = min(y, frame_h - 1)
-                    w = min(w, frame_w - x)
-                    h = min(h, frame_h - y)
-
                     face = rgb_frame[y:y + h, x:x + w]
 
                     if face.shape[0] > 20 and face.shape[1] > 20:
@@ -152,12 +184,10 @@ class LoginPage(Screen):
 
                                     Clock.schedule_once(lambda dt: self.successful_login(user_name))
                                     return
-                            else:
-                                self.recognition_attempts = [] 
 
     def preprocess_face(self, face):
         """Preprocess face for recognition."""
-        face = cv2.cvtColor(face, cv2.COLOR_RGB2GRAY)  
+        face = cv2.cvtColor(face, cv2.COLOR_RGB2GRAY)
         face = cv2.resize(face, (200, 200))
         return face
 
@@ -188,7 +218,6 @@ class LoginPage(Screen):
 
         if known_faces:
             recognizer.train(known_faces, np.array(labels))
-            recognizer.save("trained_faces.xml")
             self.recognizer_trained = True
 
         return known_faces, label_map
