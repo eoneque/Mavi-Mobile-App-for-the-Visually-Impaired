@@ -4,6 +4,8 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.uix.image import Image
 from kivy.uix.switch import Switch
+from kivy.clock import Clock
+import os
 
 from selection_page import SelectionPage
 from login_signup_page import LoginSignUpPage
@@ -27,7 +29,13 @@ class MyApp(App):
         self.sm.add_widget(ObjectRecognitionPage(name="object_recognition_page"))
         self.sm.add_widget(TextRecognitionPage(name="text_to_speech_page"))
 
-        self.background = Image(source="bgwhite.jpg", allow_stretch=True, keep_ratio=False)
+        # Ensure image files exist
+        self.bg_white = "bgwhite.jpg"
+        self.bg_black = "bgblack.jpg"
+        if not os.path.exists(self.bg_white) or not os.path.exists(self.bg_black):
+            print("Error: Background images not found!")
+
+        self.background = Image(source=self.bg_white, allow_stretch=True, keep_ratio=False)
         
         # Floating layout to hold buttons
         float_layout = FloatLayout()
@@ -80,10 +88,11 @@ class MyApp(App):
 
     def toggle_background(self, instance, value):
         if value:
-            self.background.source = "bgblack.jpg"
+            self.background.source = self.bg_black
         else:
-            self.background.source = "bgwhite.jpg"
-        self.background.reload()
+            self.background.source = self.bg_white
+        
+        Clock.schedule_once(lambda dt: self.background.reload(), 0.1)
 
 if __name__ == "__main__":
     MyApp().run()
