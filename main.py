@@ -11,7 +11,7 @@ from dashboard_page import DashboardPage
 from document_reader_page import DocumentReaderPage
 from object_recognition_page import ObjectRecognitionPage
 from text_to_speech_page import TextRecognitionPage
-
+from accountsettings import AccessibilitySettingsPage
 class MyApp(App):
     def build(self):
         self.sm = ScreenManager(transition=SlideTransition())
@@ -24,7 +24,7 @@ class MyApp(App):
         self.sm.add_widget(DocumentReaderPage(name="document_reader_page"))
         self.sm.add_widget(ObjectRecognitionPage(name="object_recognition_page"))
         self.sm.add_widget(TextRecognitionPage(name="text_to_speech_page"))
-
+        self.sm.add_widget(AccessibilitySettingsPage(name="accountsettings"))
         # Adding a FloatLayout to overlay the button on top
         float_layout = FloatLayout()
 
